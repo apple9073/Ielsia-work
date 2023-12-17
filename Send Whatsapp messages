@@ -1,0 +1,34 @@
+import pywhatkit
+import pandas as pd
+from pathlib import Path
+import time
+
+# Read notification message about the next month's rent, from the cobropago Excel for each property. 
+cobropago = pd.read_excel(Path.home() / 'Desktop/XXXX/COBROPAGO/cobropago.xlsm', sheet_name='Avisos') #Remember to save Excel before running this file in case any change has been made!
+cobropago = pd.DataFrame(cobropago.values[17:], columns = cobropago.iloc[16])
+cobropago = cobropago[cobropago.iloc[:,0].notnull()]
+
+pd.set_option("display.max_rows", None, "display.max_columns", None)
+
+# Read tenants' phone numbers. Be careful with number of columns and column names if we want to make any adjustment to the DB excel
+tels = pd.read_excel(Path.home() / 'Desktop/XXXX/DB.xlsm', sheet_name='ATI')
+tels = tels[tels['F ID'] != 'N']
+
+# Merge the 2 tables to get tenant&payment information as well as phone numbers
+msg_of_month = pd.merge(cobropago,tels,'left',on='F ID')
+
+# Remove unrelevant columns
+msg_of_month.drop(msg_of_month.iloc[:, -4:-1], inplace = True, axis = 1)
+msg_of_month.drop(msg_of_month.iloc[:, 1:7], inplace = True, axis = 1)
+
+# Change the format of the phone numbers to strings
+msg_of_month[['Tel', 'txt']] = msg_of_month[['Tel', 'txt']].applymap(str)
+
+# In case there's any tenant's phone number that hasn't been added, print these entries and check.
+print(msg_of_month[(msg_of_month['Tel']=='nan')])
+
+# Send Whatsapp msg to the tenants
+for index, row in msg_of_month.iterrows():
+    if row['Tel'] != 'nan' :
+     pywhatkit.sendwhatmsg_instantly('+34'+row['Tel'][:-2], row['txt'],5)
+     time.sleep(10)
